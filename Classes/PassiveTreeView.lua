@@ -451,9 +451,10 @@ function PassiveTreeViewClass:Draw(build, viewPort, inputEvents)
 			SetDrawColor(1, 1, 1)
 		end
 		if self.searchStrResults[nodeId] then
+			local lyr_rgb = self.searchStrResults[nodeId]
 			-- Node matches the search string, show the highlight circle
 			SetDrawLayer(nil, 30)
-			SetDrawColor(1, 0, 0)
+			SetDrawColor(lyr_rgb[1], lyr_rgb[2], lyr_rgb[3])
 			local size = 175 * scale / self.zoom ^ 0.4
 			DrawImage(self.highlightRing, scrX - size, scrY - size, size * 2, size * 2)
 		end
@@ -522,13 +523,13 @@ function PassiveTreeViewClass:Zoom(level, viewPort)
 	self.zoomY = relY + (self.zoomY - relY) * factor
 end
 
-function PassiveTreeViewClass:DoesNodeMatchSearchStr(node)
+local function lyr_search(node, lyr_searchTarget)	
 	if node.type == "classStart" or node.type == "mastery" then
 		return
 	end
-
+	
 	-- Check node name
-	local errMsg, match = PCall(string.match, node.dn:lower(), self.searchStr:lower())
+	local errMsg, match = PCall(string.match, node.dn:lower(), lyr_searchTarget:lower())
 	if match then
 		return true
 	end
@@ -536,14 +537,14 @@ function PassiveTreeViewClass:DoesNodeMatchSearchStr(node)
 	-- Check node description
 	for index, line in ipairs(node.sd) do
 		-- Check display text first
-		errMsg, match = PCall(string.match, line:lower(), self.searchStr:lower())
+		errMsg, match = PCall(string.match, line:lower(), lyr_searchTarget:lower())
 		if match then
 			return true
 		end
 		if not match and node.mods[index].list then
 			-- Then check modifiers
 			for _, mod in ipairs(node.mods[index].list) do
-				errMsg, match = PCall(string.match, mod.name, self.searchStr)
+				errMsg, match = PCall(string.match, mod.name, lyr_searchTarget)
 				if match then
 					return true
 				end
@@ -552,10 +553,24 @@ function PassiveTreeViewClass:DoesNodeMatchSearchStr(node)
 	end
 
 	-- Check node type
-	local errMsg, match = PCall(string.match, node.type:lower(), self.searchStr:lower())
+	local errMsg, match = PCall(string.match, node.type:lower(), lyr_searchTarget:lower())
 	if match then
 		return true
 	end
+end
+
+function PassiveTreeViewClass:DoesNodeMatchSearchStr(node)
+	local lyr_pattern = string.format("([^%s]+)", ",")
+	local lyr_stringArray = {}
+	local lyr_rgb = {{1,0,0},{0,1,0},{0,0,1}}
+	
+	self.searchStr:gsub(lyr_pattern, function(c) lyr_stringArray[#lyr_stringArray+1] = c end)
+	
+	for i = 1, #lyr_stringArray do 
+		if lyr_search(node, lyr_stringArray[i]) then return lyr_rgb[i] end
+	end
+	
+	return false
 end
 
 function PassiveTreeViewClass:AddNodeName(tooltip, node)
