@@ -6,6 +6,7 @@
 --
 local launch, main = ...
 
+local next = next
 local pairs = pairs
 local ipairs = ipairs
 local t_insert = table.insert
@@ -452,11 +453,13 @@ function PassiveTreeViewClass:Draw(build, viewPort, inputEvents)
 		end
 		if self.searchStrResults[nodeId] then
 			local lyr_rgb = self.searchStrResults[nodeId]
-			-- Node matches the search string, show the highlight circle
-			SetDrawLayer(nil, 30)
-			SetDrawColor(lyr_rgb[1], lyr_rgb[2], lyr_rgb[3])
-			local size = 175 * scale / self.zoom ^ 0.4
-			DrawImage(self.highlightRing, scrX - size, scrY - size, size * 2, size * 2)
+			-- Node matches the search string, show the highlight circle			
+			for i = 1, #lyr_rgb do
+				SetDrawLayer(nil, 31-i)
+				SetDrawColor(lyr_rgb[i][1], lyr_rgb[i][2], lyr_rgb[i][3])
+				local size = (100+i*25) * scale / self.zoom ^ 0.4
+				DrawImage(self.highlightRing, scrX - size, scrY - size, size * 2, size * 2)
+			end
 		end
 		if node == hoverNode and (node.type ~= "socket" or not IsKeyDown("SHIFT")) and not main.popups[1] then
 			-- Draw tooltip
@@ -562,15 +565,18 @@ end
 function PassiveTreeViewClass:DoesNodeMatchSearchStr(node)
 	local lyr_pattern = string.format("([^%s]+)", ",")
 	local lyr_stringArray = {}
-	local lyr_rgb = {{1,0,0},{0,1,0},{0,0,1}}
+	local lyr_result = false
+	local lyr_return = {}
 	
 	self.searchStr:gsub(lyr_pattern, function(c) lyr_stringArray[#lyr_stringArray+1] = c end)
 	
-	for i = 1, #lyr_stringArray do 
-		if lyr_search(node, lyr_stringArray[i]) then return lyr_rgb[i] end
+	for i = 1, m_min(3, #lyr_stringArray) do 
+		local lyr_rgb = {0,0,0}
+		
+		if lyr_search(node, lyr_stringArray[i]) then lyr_result = true; lyr_rgb[i] = 1; lyr_return[#lyr_return+1] = lyr_rgb end
 	end
 	
-	return false
+	return lyr_result and lyr_return
 end
 
 function PassiveTreeViewClass:AddNodeName(tooltip, node)
